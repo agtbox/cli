@@ -14,7 +14,7 @@ test("the built CLI satisfies release metadata and executable policy", () => {
   });
 
   assert.equal(result.status, 0, result.stderr);
-  assert.match(result.stdout, /release metadata is ready for @agtbox\/cli 0\.1\.0/);
+  assert.match(result.stdout, /release metadata is ready for @agtbox\/cli 0\.1\.1/);
 });
 
 test("release readiness rejects modified PolyForm Shield terms", () => {

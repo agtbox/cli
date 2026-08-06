@@ -2,7 +2,7 @@
 
 `@agtbox/cli` is the agent-oriented command-line and JavaScript client for encrypted, capability-based Agentbox handoffs. Version `0.1.x` supports Node.js 22 or newer and Bun 1.3 or newer. The package has no install lifecycle scripts.
 
-The package is not released yet. After an approved release, install it inertly with `npm install --ignore-scripts @agtbox/cli` or `bun add --ignore-scripts @agtbox/cli`. Upgrade by selecting an explicit compatible version and reviewing its changelog before replacing the lockfile entry.
+The package is published at [npmjs.com/package/@agtbox/cli](https://www.npmjs.com/package/@agtbox/cli). Install it inertly with `npm install --ignore-scripts @agtbox/cli` or `bun add --ignore-scripts @agtbox/cli`. Pin an explicit compatible version and review its changelog before replacing the lockfile entry.
 
 ## Machine contract
 
