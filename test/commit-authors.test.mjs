@@ -7,19 +7,12 @@ import test from "node:test";
 
 const verifier = new URL("../scripts/verify-commit-authors.mjs", import.meta.url);
 
-function repository(authorName, authorEmail, committerName = authorName, committerEmail = authorEmail) {
+function repository(name, email) {
   const root = mkdtempSync(join(tmpdir(), "agtbox-author-"));
   execFileSync("git", ["init", "-q"], { cwd: root });
-  execFileSync("git", ["config", "user.name", authorName], { cwd: root });
-  execFileSync("git", ["config", "user.email", authorEmail], { cwd: root });
-  execFileSync("git", ["commit", "--allow-empty", "-m", "test: fixture"], {
-    cwd: root,
-    env: {
-      ...process.env,
-      GIT_COMMITTER_NAME: committerName,
-      GIT_COMMITTER_EMAIL: committerEmail,
-    },
-  });
+  execFileSync("git", ["config", "user.name", name], { cwd: root });
+  execFileSync("git", ["config", "user.email", email], { cwd: root });
+  execFileSync("git", ["commit", "--allow-empty", "-m", "test: fixture"], { cwd: root });
   return root;
 }
 
@@ -37,14 +30,32 @@ test("commit-author verification rejects any other identity", () => {
   const result = verify(repository("Another Author", "another@example.test"));
 
   assert.notEqual(result.status, 0);
-  assert.match(result.stderr, /invalid commit author or committer/);
+  assert.match(result.stderr, /invalid commit author/);
 });
 
-test("commit-author verification rejects a private committer even with the public author", () => {
-  const result = verify(repository("agtbox", "dev@agtbox.dev", "Private Operator", "operator@example.test"));
+test("commit-author verification rejects a different committer identity", () => {
+  const root = repository("Personal Committer", "personal@example.test");
+  execFileSync("git", ["commit", "--amend", "--allow-empty", "--no-edit", "--author", "agtbox <dev@agtbox.dev>"], { cwd: root });
+
+  const result = verify(root);
 
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /invalid commit author or committer/);
+});
+
+test("commit-author verification rejects non-linear public history", () => {
+  const root = repository("agtbox", "dev@agtbox.dev");
+  const main = execFileSync("git", ["branch", "--show-current"], { cwd: root, encoding: "utf8" }).trim();
+  execFileSync("git", ["checkout", "-q", "-b", "fixture-side"], { cwd: root });
+  execFileSync("git", ["commit", "--allow-empty", "-m", "test: side"], { cwd: root });
+  execFileSync("git", ["checkout", "-q", main], { cwd: root });
+  execFileSync("git", ["commit", "--allow-empty", "-m", "test: main"], { cwd: root });
+  execFileSync("git", ["merge", "--no-ff", "fixture-side", "-m", "test: merge"], { cwd: root });
+
+  const result = verify(root);
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /non-linear public history/);
 });
 
 test("commit-author verification excludes a synthetic merge commit when given the real head", () => {

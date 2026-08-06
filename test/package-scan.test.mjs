@@ -51,31 +51,6 @@ test("unpacked-package scan accepts an allowlisted public artifact", () => {
   assert.equal(result.status, 0, result.stderr);
 });
 
-test("unpacked-package scan requires an exact public repository reference", () => {
-  const publicRepository = ["https://github.com", "agtbox/cli"].join("/");
-
-  for (const reference of [
-    `${publicRepository}-private`,
-    `${publicRepository}.git.evil`,
-    `${publicRepository}.git/path`,
-  ]) {
-    const result = scan({ "package/README.md": `${reference}\n` });
-    assert.notEqual(result.status, 0, reference);
-    assert.match(result.stderr, /non-public repository reference/);
-  }
-
-  for (const reference of [
-    publicRepository,
-    `${publicRepository}.git`,
-    `${publicRepository}/issues/1`,
-    `${publicRepository}?tab=readme`,
-    `${publicRepository}#readme`,
-  ]) {
-    const result = scan({ "package/README.md": `${reference}\n` });
-    assert.equal(result.status, 0, `${reference}: ${result.stderr}`);
-  }
-});
-
 test("unpacked-package scan does not skip secret markers inside binary files", () => {
   const credential = [["cfut", "embeddedcredential"].join("_")];
   const result = scan({
@@ -94,6 +69,23 @@ test("unpacked-package scan rejects generic assigned credentials", () => {
 
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /assigned credential-shaped value/);
+});
+
+test("unpacked-package scan rejects non-public GitHub repository transport forms", () => {
+  const result = scan({
+    "package/dist/index.js": [
+      ["https://", "github.com", "/agtbox/", "cli-private"].join(""),
+      ["https://", "github.com", "/agtbox/", "cli.git.evil"].join(""),
+      ["https://", "github.com", "/agtbox/", "cli.git/path"].join(""),
+      ["git@", "github.com", ":agtbox/", "cli-private.git"].join(""),
+      ["ssh://git@", "github.com", "/agtbox/", "cli-private.git"].join(""),
+      ["git://", "github.com", "/agtbox/", "cli-private.git"].join(""),
+      ["https://", "github.com", ":443/agtbox/cli"].join(""),
+    ].join("\n"),
+  });
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /non-public repository reference/);
 });
 
 test("unpacked-package scan rejects a prohibited private brand in a filename", () => {

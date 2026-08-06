@@ -17,6 +17,7 @@ if (createHash("sha256").update(license).digest("hex") !== "56328093d57c87dcf281
 if (!packageJson.version || packageJson.version.includes("development")) findings.push("package version must be a release version");
 if (packageJson.bin?.agentbox !== "dist/agentbox.js") findings.push("package must expose the agentbox executable at dist/agentbox.js");
 if (packageJson.repository?.url !== "git+https://github.com/agtbox/cli.git") findings.push("package repository must be the public agtbox/cli repository");
+if (packageJson.bugs?.url !== "https://github.com/agtbox/cli/issues") findings.push("package bugs URL must be the public agtbox/cli issue tracker");
 if (packageJson.publishConfig?.access !== "public") findings.push("package publishConfig.access must be public");
 if (!packageJson.engines?.node || !packageJson.engines?.bun) findings.push("package must declare supported Node and Bun runtime ranges");
 

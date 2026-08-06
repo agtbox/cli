@@ -32,6 +32,20 @@ test("public-tree verification rejects a file outside the positive allowlist", (
   assert.match(result.stderr, /not present in the public-file allowlist: \.env/);
 });
 
+test("public-tree verification rejects allowlisted environment directories", () => {
+  const root = mkdtempSync(join(tmpdir(), "agtbox-public-env-directory-"));
+  mkdirSync(join(root, ".env"));
+  mkdirSync(join(root, "release"));
+  writeFileSync(join(root, ".env", "secret"), "clean-looking\n");
+  const allowlist = join(root, "release", "public-files.json");
+  writeFileSync(allowlist, JSON.stringify([".env/secret", "release/public-files.json"]));
+
+  const result = run(root, allowlist);
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /environment-secret path in \.env\/secret/);
+});
+
 test("public-tree verification rejects a real repository with an empty index", () => {
   const root = mkdtempSync(join(tmpdir(), "agtbox-public-empty-index-"));
   mkdirSync(join(root, "release"));
@@ -93,35 +107,46 @@ test("public-tree verification scans allowlisted repository-only content", () =>
   assert.match(result.stderr, /non-public repository reference in README\.md/);
 });
 
-test("public-tree verification requires an exact public repository reference", () => {
-  const root = mkdtempSync(join(tmpdir(), "agtbox-public-reference-"));
+test("public-tree verification rejects non-public GitHub repository transport forms", () => {
+  const root = mkdtempSync(join(tmpdir(), "agtbox-public-github-reference-"));
   mkdirSync(join(root, "release"));
+  const invalidReferences = [
+    ["https://", "github.com", "/agtbox/", "cli-private"].join(""),
+    ["https://", "github.com", "/agtbox/", "cli.git.evil"].join(""),
+    ["https://", "github.com", "/agtbox/", "cli.git/path"].join(""),
+    ["git@", "github.com", ":agtbox/", "cli-private.git"].join(""),
+    ["ssh://git@", "github.com", "/agtbox/", "cli-private.git"].join(""),
+    ["git://", "github.com", "/agtbox/", "cli-private.git"].join(""),
+    ["https://", "github.com", ":443/agtbox/cli"].join(""),
+  ];
+  writeFileSync(join(root, "README.md"), invalidReferences.join("\n"));
   const allowlist = join(root, "release", "public-files.json");
   writeFileSync(allowlist, JSON.stringify(["README.md", "release/public-files.json"]));
-  const publicRepository = ["https://github.com", "agtbox/cli"].join("/");
 
-  for (const reference of [
-    `${publicRepository}-private`,
-    `${publicRepository}.git.evil`,
-    `${publicRepository}.git/path`,
-  ]) {
-    writeFileSync(join(root, "README.md"), `${reference}\n`);
-    const result = run(root, allowlist);
-    assert.notEqual(result.status, 0, reference);
-    assert.match(result.stderr, /non-public repository reference in README\.md/);
-  }
+  const result = run(root, allowlist);
 
-  for (const reference of [
-    publicRepository,
-    `${publicRepository}.git`,
-    `${publicRepository}/issues/1`,
-    `${publicRepository}?tab=readme`,
-    `${publicRepository}#readme`,
-  ]) {
-    writeFileSync(join(root, "README.md"), `${reference}\n`);
-    const result = run(root, allowlist);
-    assert.equal(result.status, 0, `${reference}: ${result.stderr}`);
-  }
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /non-public repository reference in README\.md/);
+});
+
+test("public-tree verification accepts exact public repository URLs", () => {
+  const root = mkdtempSync(join(tmpdir(), "agtbox-public-github-reference-"));
+  mkdirSync(join(root, "release"));
+  writeFileSync(join(root, "README.md"), [
+    "https://github.com/agtbox/cli",
+    "https://github.com/agtbox/cli/issues?state=open#new",
+    "git+https://github.com/agtbox/cli.git#v0.1.0",
+    "ssh://git@github.com/agtbox/cli.git",
+    "git://github.com/agtbox/cli.git",
+    "git@github.com:agtbox/cli.git",
+    "HTTPS://GITHUB.COM/AGTBOX/CLI",
+  ].join("\n"));
+  const allowlist = join(root, "release", "public-files.json");
+  writeFileSync(allowlist, JSON.stringify(["README.md", "release/public-files.json"]));
+
+  const result = run(root, allowlist);
+
+  assert.equal(result.status, 0, result.stderr);
 });
 
 test("public-tree verification rejects a prohibited private brand in a filename", () => {
@@ -136,4 +161,17 @@ test("public-tree verification rejects a prohibited private brand in a filename"
 
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /prohibited private brand or operator token in path/);
+});
+
+test("public-tree verification rejects agentic documentation even when allowlisted", () => {
+  const root = mkdtempSync(join(tmpdir(), "agtbox-public-agent-doc-"));
+  mkdirSync(join(root, "release"));
+  writeFileSync(join(root, "AGENTS.md"), "private instructions\n");
+  const allowlist = join(root, "release", "public-files.json");
+  writeFileSync(allowlist, JSON.stringify(["AGENTS.md", "release/public-files.json"]));
+
+  const result = run(root, allowlist);
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /agentic documentation is prohibited in the public tree: AGENTS\.md/);
 });

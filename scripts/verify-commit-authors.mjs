@@ -3,7 +3,7 @@ import { spawnSync } from "node:child_process";
 
 const root = resolve(process.argv[2] ?? process.cwd());
 const revision = process.argv[3] ?? "--all";
-const result = spawnSync("git", ["-C", root, "log", revision, "--format=%H%x09%an%x09%ae%x09%cn%x09%ce"], { encoding: "utf8" });
+const result = spawnSync("git", ["-C", root, "log", revision, "--format=%H%x09%an%x09%ae%x09%cn%x09%ce%x09%P"], { encoding: "utf8" });
 if (result.status !== 0) {
   process.stderr.write(result.stderr);
   process.exit(result.status ?? 1);
@@ -22,6 +22,12 @@ const invalid = commits.filter((line) => {
 });
 if (invalid.length > 0) {
   for (const line of invalid) console.error(`invalid commit author or committer: ${line}`);
+  process.exit(1);
+}
+
+const nonLinear = commits.filter((line) => line.split("\t")[5]?.split(" ").filter(Boolean).length > 1);
+if (nonLinear.length > 0) {
+  for (const line of nonLinear) console.error(`non-linear public history: ${line}`);
   process.exit(1);
 }
 

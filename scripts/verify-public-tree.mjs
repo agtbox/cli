@@ -80,12 +80,21 @@ const repositoryRules = [
   [/\b0x[a-fA-F0-9]{64}\b/, "private-key-shaped hexadecimal value"],
   [/\b(?:api[_-]?key|secret|token|private[_-]?key|password)\s*[:=]\s*["']?[A-Za-z0-9+/_=-]{16,}/i, "assigned credential-shaped value"],
 ];
+const prohibitedPathRules = [
+  [/(^|\/)\.env(?:\.|\/|$)/i, "environment-secret path"],
+  [/(^|\/)(?:infra|pulumi|worker|store)(?:\/|\.|$)/i, "private implementation path"],
+];
+const agentDocumentationPath = /(^|\/)(?:AGENTS\.md|CLAUDE\.md|CODEX\.md|\.agents)(?:\/|$)/i;
 const prohibitedTokenHashes = new Set([
   "0c1947d6df797426e38d0dcbeea12196b9e5ccd89e38e80ce145bce67861d7ff",
   "884998e0acc403763c0a96ec3dbb1035ac3fed150d5e6320003536c381d5e6f0",
   "c12a1492920c8780b98bb44598d34c9621c8e8314992c47e0d34a2af98150de8",
 ]);
 for (const path of actual) {
+  for (const [pattern, label] of prohibitedPathRules) {
+    if (pattern.test(path)) findings.push(`${label} in ${path}`);
+  }
+  if (agentDocumentationPath.test(path)) findings.push(`agentic documentation is prohibited in the public tree: ${path}`);
   for (const token of path.match(/[A-Za-z][A-Za-z0-9_-]{2,}/g) ?? []) {
     const digest = createHash("sha256").update(token.toLowerCase()).digest("hex");
     if (prohibitedTokenHashes.has(digest)) findings.push(`prohibited private brand or operator token in path: ${path}`);

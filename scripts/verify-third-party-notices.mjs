@@ -13,14 +13,32 @@ const lockfilePath = resolve(argument("--lockfile", "package-lock.json"));
 const bundleMetafilePath = resolve(argument("--bundle-metafile", "release/bundle-metafile.json"));
 const components = JSON.parse(readFileSync(manifestPath, "utf8"));
 const notices = readFileSync(noticesPath, "utf8");
-const lockfile = JSON.parse(readFileSync(lockfilePath, "utf8"));
-const bundleMetafile = JSON.parse(readFileSync(bundleMetafilePath, "utf8"));
+const lockfile = existsSync(lockfilePath) ? JSON.parse(readFileSync(lockfilePath, "utf8")) : { packages: {} };
+if (!existsSync(bundleMetafilePath)) {
+  console.error(`generated bundler metafile is missing: ${bundleMetafilePath}`);
+  process.exit(1);
+}
+let bundleMetafile;
+try {
+  bundleMetafile = JSON.parse(readFileSync(bundleMetafilePath, "utf8"));
+} catch {
+  console.error(`generated bundler metafile is invalid JSON: ${bundleMetafilePath}`);
+  process.exit(1);
+}
 const declared = new Set();
 const findings = [];
 const projectRoot = resolve(lockfilePath, "..");
 
-if (!Array.isArray(components) || typeof lockfile.packages !== "object" || typeof bundleMetafile.inputs !== "object") {
+function isRecord(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+if (!Array.isArray(components) || !isRecord(lockfile.packages)) {
   console.error("third-party component manifest must be a JSON array");
+  process.exit(1);
+}
+if (!isRecord(bundleMetafile) || !isRecord(bundleMetafile.inputs) || !isRecord(bundleMetafile.outputs)) {
+  console.error("generated bundler metafile must contain object inputs and outputs");
   process.exit(1);
 }
 

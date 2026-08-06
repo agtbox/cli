@@ -27,12 +27,12 @@
     "x402"
   ],
   "homepage": "https://agentbox.link/docs/cli",
-  "bugs": {
-    "url": "https://github.com/agtbox/cli/issues"
-  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/agtbox/cli.git"
+  },
+  "bugs": {
+    "url": "https://github.com/agtbox/cli/issues"
   },
   "publishConfig": {
     "access": "public"

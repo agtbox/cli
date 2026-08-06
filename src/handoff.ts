@@ -163,6 +163,13 @@ function paymentRetryFetch(fetch: FetchLike, paymentSignature: string): FetchLik
   };
 }
 
+function exactArrayBuffer(bytes: Uint8Array): ArrayBuffer {
+  if (bytes.byteOffset === 0 && bytes.byteLength === bytes.buffer.byteLength && bytes.buffer instanceof ArrayBuffer) {
+    return bytes.buffer;
+  }
+  return Uint8Array.from(bytes).buffer;
+}
+
 function recordingPaymentFetch(fetch: FetchLike, callback: CreateAndUploadOptions["onPaymentSignature"]): FetchLike {
   return async (input, init) => {
     const request = new Request(input, init);
@@ -230,7 +237,7 @@ export async function createAndUpload(options: CreateAndUploadOptions): Promise<
   const upload = await fetch(capabilityUrl({
     boxId: box.boxId, capability: box.upload.capability, endpoint: options.endpoint, url: box.upload.url,
   }), {
-    body: options.ciphertext.slice().buffer,
+    body: exactArrayBuffer(options.ciphertext),
     headers: {
       authorization: `Bearer ${box.upload.capability}`,
       "content-length": String(options.ciphertext.byteLength),

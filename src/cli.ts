@@ -112,7 +112,7 @@ async function readPaymentRecovery(
   let recovery: Partial<PaymentRecovery>;
   try {
     const metadata = await file.stat();
-    if (!metadata.isFile() || (metadata.mode & 0o077) !== 0) {
+    if (!metadata.isFile() || (process.platform !== "win32" && (metadata.mode & 0o077) !== 0)) {
       throw new Error("Payment recovery file must be a protected regular file.");
     }
     recovery = JSON.parse(await file.readFile("utf8")) as Partial<PaymentRecovery>;
@@ -130,8 +130,22 @@ export function shouldDiscardPaymentRecovery(error: unknown): boolean {
   return error instanceof PaymentRejectedError && error.definitive;
 }
 
+async function discardPaymentRecovery(path: string): Promise<boolean> {
+  try {
+    await unlink(path);
+    return true;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return true;
+    return false;
+  }
+}
+
 function boxUrl(endpoint: string, boxId: string): string {
   return new URL(`/v1/boxes/${encodeURIComponent(boxId)}`, endpoint).toString();
+}
+
+export function assertCiphertextSize(ciphertext: Uint8Array): void {
+  if (ciphertext.byteLength > MAX_CIPHERTEXT_BYTES) throw new Error("Encrypted ciphertext exceeds the 10 MiB limit.");
 }
 
 export async function main(args: string[]): Promise<unknown> {
@@ -151,6 +165,7 @@ export async function main(args: string[]): Promise<unknown> {
       await readBytes(option(args, "--input")),
       await readSecretFile(option(args, "--recipient-file")),
     );
+    assertCiphertextSize(ciphertext);
     await writeNewFile(option(args, "--output"), ciphertext);
     return { ciphertextSha256: await sha256Hex(ciphertext), ciphertextSize: ciphertext.byteLength };
   }
@@ -176,6 +191,7 @@ export async function main(args: string[]): Promise<unknown> {
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
       ciphertext = await encryptForRecipient(await readBytes(input), await readSecretFile(option(args, "--recipient-file")));
+      assertCiphertextSize(ciphertext);
       await writeNewFile(ciphertextFile, ciphertext);
     }
     const endpoint = new URL(option(args, "--endpoint", "AGENTBOX_ENDPOINT")).toString();
@@ -204,11 +220,14 @@ export async function main(args: string[]): Promise<unknown> {
         ...(recovery ? { paymentSignature: recovery.paymentSignature } : {}),
       });
     } catch (error) {
-      if (shouldDiscardPaymentRecovery(error) && recovery) await unlink(paymentRecoveryFile);
+      if (shouldDiscardPaymentRecovery(error) && recovery) await discardPaymentRecovery(paymentRecoveryFile);
       throw error;
     }
     const capabilitiesFile = option(args, "--capabilities-file");
     await writeNewFile(capabilitiesFile, JSON.stringify({ ...box, idempotencyKey }));
+    if (recovery && !(await discardPaymentRecovery(paymentRecoveryFile))) {
+      process.stderr.write(`${JSON.stringify({ event: "payment_recovery_cleanup_warning", paymentRecoveryFile })}\n`);
+    }
     const { delete: _delete, download: _download, upload: _upload, ...metadata } = box;
     return { ...metadata, capabilitiesFile, idempotencyKey };
   }

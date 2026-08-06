@@ -8,6 +8,26 @@ import test from "node:test";
 
 const verifier = new URL("../scripts/verify-package.mjs", import.meta.url);
 
+test("public metadata and contribution policy point only to the public issue tracker", () => {
+  const root = new URL("..", import.meta.url);
+  const packageJson = JSON.parse(readFileSync(new URL("package.json", root), "utf8"));
+  const readme = readFileSync(new URL("README.md", root), "utf8");
+  const contributing = readFileSync(new URL("CONTRIBUTING.md", root), "utf8");
+
+  assert.equal(packageJson.name, "@agtbox/cli");
+  assert.equal(packageJson.description, "Agent-first CLI and JavaScript client for encrypted, recipient-bound Agentbox transfers");
+  assert.equal(packageJson.author, "agtbox");
+  assert.equal(packageJson.homepage, "https://agentbox.link/docs/cli");
+  assert.deepEqual(packageJson.keywords, ["agentbox", "cli", "encryption", "usdc", "x402"]);
+  assert.equal(packageJson.repository?.url, "git+https://github.com/agtbox/cli.git");
+  assert.equal(packageJson.bugs?.url, "https://github.com/agtbox/cli/issues");
+  assert.match(readme, /Open a GitHub Issue for bugs or feature requests\./);
+  assert.match(readme, /Pull requests are not accepted/);
+  assert.match(contributing, /public distribution repository/);
+  assert.match(contributing, /github\.com\/agtbox\/cli\/issues/);
+  assert.match(contributing, /Pull requests are not\s+accepted/);
+});
+
 test("package verification rejects npm pack output beyond the committed allowlist", () => {
   const root = mkdtempSync(join(tmpdir(), "agtbox-pack-manifest-"));
   mkdirSync(join(root, "release"));

@@ -32,6 +32,10 @@ The JavaScript export provides the encryption, commitment, create/upload, inspec
 
 Report vulnerabilities as described in [SECURITY.md](SECURITY.md). Do not paste secret files or payment/capability values into a report.
 
+## Contributing
+
+Open a GitHub Issue for bugs or feature requests. Pull requests are not accepted; this project is maintained by its project team.
+
 ## License
 
 Source-available under the [PolyForm Shield License 1.0.0](LICENSE). This is not an OSI-approved open-source license.

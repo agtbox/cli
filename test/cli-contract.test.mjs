@@ -1,11 +1,50 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { chmodSync, mkdtempSync, readFileSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdtempSync, readFileSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
-const { main, sha256Hex } = await import("../dist/index.js");
+const { assertCiphertextSize, main, sha256Hex } = await import("../dist/index.js");
+
+test("ciphertext output limit accepts the exact boundary and rejects one byte over", () => {
+  assert.doesNotThrow(() => assertCiphertextSize(new Uint8Array(10 * 1024 * 1024)));
+  assert.throws(() => assertCiphertextSize(new Uint8Array(10 * 1024 * 1024 + 1)), /exceeds/u);
+});
+
+test("encrypt and send reject oversize encrypted output without creating a ciphertext file", () => {
+  const directory = mkdtempSync(join(tmpdir(), "agtbox-ciphertext-limit-"));
+  const identityFile = join(directory, "identity.txt");
+  const recipientFile = join(directory, "recipient.txt");
+  const input = join(directory, "input.bin");
+  const encryptedOutput = join(directory, "encrypt.age");
+  const sentOutput = join(directory, "send.age");
+  try {
+    const generated = spawnSync(process.execPath, ["dist/agentbox.js", "identity", "generate", "--identity-file", identityFile], {
+      cwd: new URL("..", import.meta.url), encoding: "utf8",
+    });
+    assert.equal(generated.status, 0, generated.stderr);
+    writeFileSync(recipientFile, `${JSON.parse(generated.stdout).publicKey}\n`, { mode: 0o600 });
+    chmodSync(recipientFile, 0o600);
+    writeFileSync(input, Buffer.alloc(10 * 1024 * 1024));
+    const encrypt = spawnSync(process.execPath, [
+      "dist/agentbox.js", "encrypt", "--input", input, "--recipient-file", recipientFile, "--output", encryptedOutput,
+    ], { cwd: new URL("..", import.meta.url), encoding: "utf8", maxBuffer: 16 * 1024 * 1024 });
+    assert.equal(encrypt.status, 1);
+    assert.match(JSON.parse(encrypt.stderr).error.message, /Encrypted ciphertext exceeds/u);
+    assert.equal(existsSync(encryptedOutput), false);
+
+    const send = spawnSync(process.execPath, [
+      "dist/agentbox.js", "send", "--endpoint", "https://agentbox.link", "--input", input, "--recipient-file", recipientFile,
+      "--payer-key-file", identityFile, "--capabilities-file", join(directory, "capabilities.json"), "--ciphertext-file", sentOutput,
+    ], { cwd: new URL("..", import.meta.url), encoding: "utf8", maxBuffer: 16 * 1024 * 1024 });
+    assert.equal(send.status, 1);
+    assert.match(JSON.parse(send.stderr).error.message, /Encrypted ciphertext exceeds/u);
+    assert.equal(existsSync(sentOutput), false);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
 
 test("agentbox reports stable package identity as JSON", () => {
   const result = spawnSync(process.execPath, ["dist/agentbox.js", "--version", "--json"], {
@@ -32,6 +71,41 @@ test("secret input files with group or other access are rejected", () => {
     assert.equal(result.status, 1);
     assert.match(JSON.parse(result.stderr).error.message, /protected/u);
     assert.equal(result.stdout, "");
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("payment recovery files retain Windows-compatible permissions but reject broad POSIX permissions", async () => {
+  if (process.platform === "win32") return;
+  const directory = mkdtempSync(join(tmpdir(), "agtbox-recovery-mode-"));
+  const identityFile = join(directory, "identity.txt");
+  const recipientFile = join(directory, "recipient.txt");
+  const payerKeyFile = join(directory, "payer-key.txt");
+  const ciphertextFile = join(directory, "ciphertext.age");
+  const recoveryFile = `${ciphertextFile}.payment.json`;
+  try {
+    const generated = spawnSync(process.execPath, ["dist/agentbox.js", "identity", "generate", "--identity-file", identityFile], {
+      cwd: new URL("..", import.meta.url), encoding: "utf8",
+    });
+    writeFileSync(recipientFile, `${JSON.parse(generated.stdout).publicKey}\n`, { mode: 0o600 });
+    chmodSync(recipientFile, 0o600);
+    writeFileSync(payerKeyFile, `0x${"1".repeat(64)}\n`, { mode: 0o600 });
+    chmodSync(payerKeyFile, 0o600);
+    writeFileSync(ciphertextFile, "ciphertext", { mode: 0o600 });
+    writeFileSync(recoveryFile, JSON.stringify({
+      ciphertextSha256: await sha256Hex(readFileSync(ciphertextFile)), endpoint: "https://agentbox.link/",
+      idempotencyKey: "recovery-permissions", paymentSignature: "saved-authorization",
+    }), { mode: 0o644 });
+    chmodSync(recoveryFile, 0o644);
+
+    const result = spawnSync(process.execPath, [
+      "dist/agentbox.js", "send", "--endpoint", "https://agentbox.link/", "--input", ciphertextFile,
+      "--recipient-file", recipientFile, "--payer-key-file", payerKeyFile, "--capabilities-file", join(directory, "capabilities.json"),
+      "--idempotency-key", "recovery-permissions", "--ciphertext-file", ciphertextFile,
+    ], { cwd: new URL("..", import.meta.url), encoding: "utf8" });
+    assert.equal(result.status, 1);
+    assert.match(JSON.parse(result.stderr).error.message, /protected regular file/u);
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }
@@ -177,6 +251,26 @@ test("send allowlists service fields before protected-file and stdout results", 
       idempotencyKey,
     });
     assert.deepEqual(JSON.parse(readFileSync(capabilitiesFile, "utf8")), { ...box, idempotencyKey });
+    assert.equal(existsSync(`${ciphertextFile}.payment.json`), false);
+
+    writeFileSync(`${ciphertextFile}.payment.json`, JSON.stringify({
+      ciphertextSha256: await sha256Hex(readFileSync(ciphertextFile)), endpoint, idempotencyKey, paymentSignature: "saved-authorization",
+    }), { mode: 0o600 });
+    globalThis.fetch = async () => new Response(null, { status: 402 });
+    await assert.rejects(main([
+      "send", "--endpoint", endpoint, "--input", input, "--recipient-file", recipientFile,
+      "--payer-key-file", payerKeyFile, "--capabilities-file", join(directory, "ambiguous-capabilities.json"),
+      "--idempotency-key", idempotencyKey, "--ciphertext-file", ciphertextFile,
+    ]), /rejected the payment authorization/u);
+    assert.equal(existsSync(`${ciphertextFile}.payment.json`), true);
+
+    globalThis.fetch = async () => new Response(null, { headers: { "payment-response": "invalid" }, status: 402 });
+    await assert.rejects(main([
+      "send", "--endpoint", endpoint, "--input", input, "--recipient-file", recipientFile,
+      "--payer-key-file", payerKeyFile, "--capabilities-file", join(directory, "definitive-capabilities.json"),
+      "--idempotency-key", idempotencyKey, "--ciphertext-file", ciphertextFile,
+    ]), /rejected the payment authorization/u);
+    assert.equal(existsSync(`${ciphertextFile}.payment.json`), false);
   } finally {
     globalThis.fetch = previousFetch;
     rmSync(directory, { recursive: true, force: true });

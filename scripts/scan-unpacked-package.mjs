@@ -18,7 +18,7 @@ function filesBelow(current) {
 
 const pathRules = [
   [/\.map$/i, "source map"],
-  [/(^|\/)(?:\.env(?:\..*)?|\.env\.keys)(?:$|\/)/i, "environment-secret path"],
+  [/(^|\/)\.env(?:\.|\/|$)/i, "environment-secret path"],
   [/(^|\/)(?:infra|pulumi|worker|store)(?:$|\/|\.)/i, "private implementation path"],
 ];
 const contentRules = [

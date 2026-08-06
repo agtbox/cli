@@ -64,6 +64,46 @@ test("public API creates, uploads, inspects, downloads, and deletes against the 
   assert.equal(requests[4].headers.get("authorization"), "Bearer delete-value");
 });
 
+test("uploads exactly the supplied Buffer or Uint8Array view", async () => {
+  const endpoint = "https://agentbox.link";
+  const box = {
+    boxId: "view-box",
+    createdAt: "2026-08-04T00:00:00.000Z",
+    expiresAt: "2026-08-05T00:00:00.000Z",
+    upload: { capability: "write-value", url: `${endpoint}/v1/boxes/view-box` },
+    download: { capability: "read-value", url: `${endpoint}/v1/boxes/view-box` },
+    delete: { capability: "delete-value", url: `${endpoint}/v1/boxes/view-box` },
+  };
+  const buffer = Buffer.alloc(32, 0xee);
+  buffer.set([1, 2, 3], 9);
+  const subarrayBacking = new Uint8Array(32).fill(0xdd);
+  subarrayBacking.set([4, 5, 6], 11);
+  for (const ciphertext of [buffer.subarray(9, 12), subarrayBacking.subarray(11, 14)]) {
+    const expected = Uint8Array.from(ciphertext);
+    const expectedSha256 = await client.sha256Hex(expected);
+    const fetch = async (input, init = {}) => {
+      const request = new Request(input, init);
+      if (request.method === "POST") return Response.json(box, { status: 201 });
+      assert.equal(request.method, "PUT");
+      assert.equal(request.headers.get("content-length"), String(expected.byteLength));
+      const uploaded = new Uint8Array(await request.arrayBuffer());
+      assert.deepEqual(uploaded, expected);
+      assert.equal(await client.sha256Hex(uploaded), expectedSha256);
+      assert.equal(uploaded.byteLength, expected.byteLength);
+      return new Response(null, { status: 204 });
+    };
+    await client.createAndUpload({
+      ciphertext,
+      endpoint,
+      fetch,
+      idempotencyKey: `view-${expected[0]}`,
+      maxPriceAtomic: "10000",
+      payerPrivateKey: `0x${"1".repeat(64)}`,
+      paymentSignature: "saved-authorization",
+    });
+  }
+});
+
 test("public API rejects non-HTTPS endpoints and cross-origin capability URLs before fetching", async () => {
   let calls = 0;
   const fetch = async () => { calls += 1; return new Response(); };
