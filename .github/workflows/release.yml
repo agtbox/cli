@@ -17,6 +17,7 @@ permissions:
 
 jobs:
   build:
+    if: github.actor == 'agtbox-dev'
     runs-on: ubuntu-latest
     steps:
       - name: Check out the selected release tag
@@ -51,6 +52,7 @@ jobs:
           retention-days: 7
 
   publish:
+    if: github.actor == 'agtbox-dev'
     needs: build
     runs-on: ubuntu-latest
     environment: npm-release

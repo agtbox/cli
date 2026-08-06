@@ -4,6 +4,7 @@ import test from "node:test";
 
 test("release build verifies complete reachable author history", () => {
   const workflow = readFileSync(new URL("../.github/workflows/release.yml", import.meta.url), "utf8");
+  assert.match(workflow, /if: github\.actor == 'agtbox-dev'/u);
   assert.match(workflow, /fetch-depth: 0/u);
   assert.match(workflow, /npm run verify:authors -- "\$GITHUB_SHA"/u);
   assert.ok(workflow.indexOf("verify:authors") < workflow.indexOf("release:artifact"));
