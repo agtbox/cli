@@ -1,4 +1,4 @@
-export const packageIdentity = Object.freeze({ name: "@agtbox/cli", version: "0.1.1" } as const);
+export const packageIdentity = Object.freeze({ name: "@agtbox/cli", version: "0.1.2" } as const);
 
 export { assertCiphertextSize, CliError, main, run, shouldDiscardPaymentRecovery } from "./cli.js";
 export { decryptCiphertext, encryptForRecipient, generateRecipientIdentity, recipientForIdentity, sha256Hex } from "./crypto.js";

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.2 — 2026-08-06
+
+- Keep npm trusted publishing fail-closed while tolerating runner-provided credential variables when GitHub OIDC is available.
+
 ## 0.1.1 — 2026-08-06
 
 - Correct the installation guidance now that `@agtbox/cli` is published.

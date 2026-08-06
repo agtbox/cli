@@ -53,7 +53,7 @@ test("agentbox reports stable package identity as JSON", () => {
   });
 
   assert.equal(result.status, 0, result.stderr);
-  assert.deepEqual(JSON.parse(result.stdout), { name: "@agtbox/cli", version: "0.1.1" });
+  assert.deepEqual(JSON.parse(result.stdout), { name: "@agtbox/cli", version: "0.1.2" });
   assert.equal(result.stderr, "");
 });
 

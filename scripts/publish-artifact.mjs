@@ -8,10 +8,13 @@ function fail(message) {
   process.exit(1);
 }
 
-if (process.env.NODE_AUTH_TOKEN || process.env.NPM_TOKEN) fail("traditional npm publish credentials are prohibited");
 if (process.env.GITHUB_ACTIONS !== "true") fail("publishing is restricted to GitHub Actions");
 if (process.env.NPM_TRUSTED_PUBLISHING_READY !== "true") fail("npm trusted publishing has not been explicitly enabled");
-if (!process.env.ACTIONS_ID_TOKEN_REQUEST_URL || !process.env.ACTIONS_ID_TOKEN_REQUEST_TOKEN) fail("GitHub OIDC identity is unavailable");
+const oidcAvailable = Boolean(process.env.ACTIONS_ID_TOKEN_REQUEST_URL && process.env.ACTIONS_ID_TOKEN_REQUEST_TOKEN);
+if (!oidcAvailable) {
+  if (process.env.NODE_AUTH_TOKEN || process.env.NPM_TOKEN) fail("traditional npm publish credentials are prohibited");
+  fail("GitHub OIDC identity is unavailable");
+}
 if (process.env.GITHUB_REPOSITORY !== "agtbox/cli") fail("unexpected GitHub repository identity");
 
 const directory = resolve(process.argv[2] ?? "release-artifacts");

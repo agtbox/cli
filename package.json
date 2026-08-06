@@ -1,6 +1,6 @@
 {
   "name": "@agtbox/cli",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Agent-first CLI and JavaScript client for encrypted, recipient-bound Agentbox transfers",
   "private": false,
   "author": "agtbox",
