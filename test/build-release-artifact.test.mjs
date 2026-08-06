@@ -15,5 +15,5 @@ test("artifact construction retains an exact verified tarball", { skip: process.
 
   assert.equal(result.status, 0, result.stderr);
   assert.equal(existsSync(artifacts), true);
-  assert.match(result.stdout, /release artifact ready: agtbox-cli-0\.1\.1\.tgz/);
+  assert.match(result.stdout, /release artifact ready: agtbox-cli-0\.1\.2\.tgz/);
 });
