@@ -2,13 +2,19 @@ name: Verify public boundary
 
 on:
   push:
-  pull_request:
+    branches:
+      - main
+      - "release/**"
+    tags:
+      - "v*"
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
   verify:
+    if: github.actor == 'agtbox-dev' && github.triggering_actor == 'agtbox-dev'
     runs-on: ubuntu-latest
     steps:
       - name: Check out complete history

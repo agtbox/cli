@@ -21,6 +21,11 @@ test("release build verifies complete reachable author history", () => {
 
 test("pull-request verification installs the pinned supported Bun before testing", () => {
   const workflow = readFileSync(new URL("../.github/workflows/verify.yml", import.meta.url), "utf8");
+  assert.match(workflow, /branches:\s+- main/u);
+  assert.match(workflow, /- "release\/\*\*"/u);
+  assert.match(workflow, /tags:\s+- "v\*"/u);
+  assert.doesNotMatch(workflow, /pull_request:/u);
+  assert.match(workflow, /if: github\.actor == 'agtbox-dev' && github\.triggering_actor == 'agtbox-dev'/u);
   const setup = "oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6";
   assert.match(workflow, new RegExp(setup, "u"));
   assert.match(workflow, /bun-version: "1\.3\.0"/u);
