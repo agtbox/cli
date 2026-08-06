@@ -1,0 +1,61 @@
+{
+  "name": "@agtbox/cli",
+  "version": "0.1.0",
+  "description": "Command-line client for Agentbox",
+  "private": false,
+  "license": "PolyForm-Shield-1.0.0",
+  "type": "module",
+  "engines": {
+    "bun": ">=1.3",
+    "node": ">=22"
+  },
+  "bin": {
+    "agentbox": "dist/agentbox.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/agtbox/cli.git"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "CHANGELOG.md",
+    "dist",
+    "LICENSE",
+    "NOTICE",
+    "README.md",
+    "SECURITY.md",
+    "THIRD_PARTY_NOTICES.md",
+    "third-party-licenses"
+  ],
+  "scripts": {
+    "build:release": "node scripts/build-cli.mjs",
+    "test": "npm run build:release && node --test test/*.test.mjs",
+    "typecheck": "tsc --noEmit",
+    "verify:authors": "node scripts/verify-commit-authors.mjs .",
+    "verify:public-tree": "node scripts/verify-public-tree.mjs",
+    "verify:package": "node scripts/verify-package.mjs",
+    "verify:third-party": "node scripts/verify-third-party-notices.mjs",
+    "verify:scaffold": "npm run test && npm run verify:public-tree && npm run verify:third-party",
+    "release:artifact": "node scripts/build-release-artifact.mjs",
+    "release:readiness": "node scripts/verify-release-readiness.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "24.10.0",
+    "esbuild": "0.25.12",
+    "typescript": "5.9.3"
+  },
+  "dependencies": {
+    "@x402/evm": "2.20.0",
+    "@x402/fetch": "2.20.0",
+    "age-encryption": "0.3.0",
+    "viem": "2.55.10"
+  }
+}
