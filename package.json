@@ -1,8 +1,9 @@
 {
   "name": "@agtbox/cli",
   "version": "0.1.0",
-  "description": "Command-line client for Agentbox",
+  "description": "Agent-first CLI and JavaScript client for encrypted, recipient-bound Agentbox transfers",
   "private": false,
+  "author": "agtbox",
   "license": "PolyForm-Shield-1.0.0",
   "type": "module",
   "engines": {
@@ -17,6 +18,17 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     }
+  },
+  "keywords": [
+    "agentbox",
+    "cli",
+    "encryption",
+    "usdc",
+    "x402"
+  ],
+  "homepage": "https://agentbox.link/docs/cli",
+  "bugs": {
+    "url": "https://github.com/agtbox/cli/issues"
   },
   "repository": {
     "type": "git",
